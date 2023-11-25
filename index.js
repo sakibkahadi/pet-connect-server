@@ -27,12 +27,44 @@ async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
+
+    const petsCategoryCollection = client.db("petConnectDb").collection("petsCategory");
+    const usersCollection = client.db("petConnectDb").collection("users");
+
+    app.get('/petsCategory', async (req, res) => {
+
+      const result = await petsCategoryCollection.find().toArray()
+      res.send(result)
+    })
+
+
+    // users related api
+     app.get('/users' ,async(req,res)=>{
+      const result = await usersCollection.find().toArray()
+      res.send(result)
+    })
+
+   app.post('/users', async(req,res)=>{
+      const user = req.body;
+      //  insert email if user doesn't exists:
+      const query = {email: user.email}
+      const existingUser = await usersCollection.findOne(query)
+      if(existingUser){
+        return res.send({message: 'user already exist', insertedId: null})
+      }
+      const result = await usersCollection.insertOne(user);
+      res.send(result)
+    })
+
+
+
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
     // Ensures that the client will close when you finish/error
-    await client.close();
+    // await client.close();
   }
 }
 run().catch(console.dir);
@@ -40,9 +72,9 @@ run().catch(console.dir);
 
 
 
-app.get('/',(req,res)=>{
-    res.send('Server is ok')
+app.get('/', (req, res) => {
+  res.send('Server is ok')
 })
-app.listen(port, ()=>{
-    console.log(`Pet Connect Server is running on port:${port}`)
+app.listen(port, () => {
+  console.log(`Pet Connect Server is running on port:${port}`)
 })
