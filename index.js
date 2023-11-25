@@ -31,32 +31,33 @@ async function run() {
 
     const petsCategoryCollection = client.db("petConnectDb").collection("petsCategory");
     const usersCollection = client.db("petConnectDb").collection("users");
+    const petsCollection = client.db("petConnectDb").collection("pets");
 
     //middle wares
-    const verifyToken = (req,res,next)=>{
+    const verifyToken = (req, res, next) => {
       // console.log('inside verify token', req.headers.authorization)
-      if(!req.headers.authorization){
-        return res.status(401).send({message: 'unauthorized access'})
+      if (!req.headers.authorization) {
+        return res.status(401).send({ message: 'unauthorized access' })
       }
       const token = req.headers.authorization.split(' ')[1]
-      jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded)=>{
-        if(err){
-          return res.status(401).send({message: 'unauthorized access'})
+      jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+        if (err) {
+          return res.status(401).send({ message: 'unauthorized access' })
 
         }
         req.decoded = decoded;
         next();
       })
-     
+
     }
 
 
 
     //jwt related api
-    app.post('/jwt', async(req,res)=>{
+    app.post('/jwt', async (req, res) => {
       const user = req.body;
-      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {expiresIn: '1h'})
-      res.send({token});
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
+      res.send({ token });
     })
 
     //category related api
@@ -67,22 +68,39 @@ async function run() {
 
 
     // users related api
-     app.get('/users',verifyToken ,async(req,res)=>{
+    app.get('/users', async (req, res) => {
       const result = await usersCollection.find().toArray()
       res.send(result)
     })
 
-   app.post('/users', async(req,res)=>{
+    app.post('/users', async (req, res) => {
       const user = req.body;
       //  insert email if user doesn't exists:
-      const query = {email: user.email}
+      const query = { email: user.email }
       const existingUser = await usersCollection.findOne(query)
-      if(existingUser){
-        return res.send({message: 'user already exist', insertedId: null})
+      if (existingUser) {
+        return res.send({ message: 'user already exist', insertedId: null })
       }
       const result = await usersCollection.insertOne(user);
       res.send(result)
     })
+
+    //pet related api
+    app.get('/pets', async (req, res) => {
+      let query = {};
+      console.log(req.query.email)
+      if (req.query?.email) {
+          query = { email: req.query.email }
+      }
+      const result = await petsCollection.find(query).toArray()
+      res.send(result)
+    })
+    app.post('/pets', async (req, res) => {
+      const petInfo = req.body;
+      const result = await petsCollection.insertOne(petInfo)
+      res.send(result)
+    })
+
 
 
 
