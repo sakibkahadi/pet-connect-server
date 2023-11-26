@@ -2,7 +2,7 @@ const express = require('express')
 const app = express();
 const cors = require('cors');
 const jwt = require('jsonwebtoken')
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config()
 
 const port = process.env.PORT || 5000;
@@ -90,7 +90,7 @@ async function run() {
       let query = {};
       console.log(req.query.email)
       if (req.query?.email) {
-          query = { email: req.query.email }
+        query = { email: req.query.email }
       }
       const result = await petsCollection.find(query).toArray()
       res.send(result)
@@ -100,8 +100,60 @@ async function run() {
       const result = await petsCollection.insertOne(petInfo)
       res.send(result)
     })
+    app.get('/pets/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }
+      const result = await petsCollection.findOne(query)
+      res.send(result)
+    })
+    app.put('/pets/:id', async (req, res) => {
+      const id = req.params.id;
+      const updatedPets = req.body;
 
+      const filter = { _id: new ObjectId(id) }
+      const options = { upsert: true }
+      const updatedDoc = {
+        $set: {
 
+          petImage: updatedPets.petImage,
+          petName: updatedPets.petName,
+          petAge: updatedPets.petAge,
+          category: updatedPets.category,
+          location: updatedPets.location,
+          short_description: updatedPets.short_description,
+          long_description: updatedPets.long_description,
+          // addedDate: updatedPets.addedDate,
+          // adopted: updatedPets.adopted,
+          // email: updatedPets.email
+        }
+      }
+      const result = await petsCollection.updateOne(filter, updatedDoc, options)
+      res.send(result)
+    })
+    app.delete('/pets/:id',async(req,res)=>{
+      const id = req.params.id;
+      const query = {_id: new ObjectId(id)}
+      const result = await petsCollection.deleteOne(query);
+      res.send(result)
+    })
+
+    app.patch('/pets/:id', async(req,res)=>{
+      const item= req.body;
+      console.log(item)
+      const id = req.params.id;
+      const filter = {_id: new ObjectId (id)}
+      const updatedDoc ={
+        $set:{
+          adopted: item.adopted
+          
+        }
+      }
+      console.log(item)
+      const result = await petsCollection.updateOne(filter, updatedDoc)
+      res.send(result)
+    })
+
+    //donation Campaign related api
 
 
 
