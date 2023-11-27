@@ -32,6 +32,8 @@ async function run() {
     const petsCategoryCollection = client.db("petConnectDb").collection("petsCategory");
     const usersCollection = client.db("petConnectDb").collection("users");
     const petsCollection = client.db("petConnectDb").collection("pets");
+    const donationsCollections = client.db("petConnectDb").collection("donations");
+    const adoptionRequestCollections = client.db("petConnectDb").collection("adoptionRequest");
 
     //middle wares
     const verifyToken = (req, res, next) => {
@@ -85,10 +87,12 @@ async function run() {
       res.send(result)
     })
 
+
+
     //pet related api
     app.get('/pets', async (req, res) => {
       let query = {};
-      console.log(req.query.email)
+      
       if (req.query?.email) {
         query = { email: req.query.email }
       }
@@ -153,9 +157,41 @@ async function run() {
       res.send(result)
     })
 
+    //adoption request related api
+    app.post('/adoptionRequest', async (req, res) => {
+      const adoptionInfo = req.body;
+      const query = {petId: adoptionInfo.petId}
+      console.log(query)
+    existingRequest = await adoptionRequestCollections.findOne(query)
+      if(existingRequest){
+        return res.send({ message: 'This pet adopted request is already send', insertedId: null})
+      }
+      const result = await adoptionRequestCollections.insertOne(adoptionInfo)
+      res.send(result)
+    })
+
+
     //donation Campaign related api
-
-
+    app.post('/donations', async (req, res) => {
+      const petInfo = req.body;
+      const result = await donationsCollections.insertOne(petInfo)
+      res.send(result)
+    })
+    app.get('/donations', async (req, res) => {
+      let query = {};
+      console.log(req.query.email)
+      if (req.query?.email) {
+        query = { email: req.query.email }
+      }
+      const result = await donationsCollections.find(query).toArray()
+      res.send(result)
+    })
+    app.get('/donations/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }
+      const result = await donationsCollections.findOne(query)
+      res.send(result)
+    })
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
