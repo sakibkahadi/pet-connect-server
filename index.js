@@ -32,7 +32,7 @@ async function run() {
     const petsCategoryCollection = client.db("petConnectDb").collection("petsCategory");
     const usersCollection = client.db("petConnectDb").collection("users");
     const petsCollection = client.db("petConnectDb").collection("pets");
-    const donationsCollections = client.db("petConnectDb").collection("donations");
+    const donationCampaignsCollections = client.db("petConnectDb").collection("donationCampaigns");
     const adoptionRequestCollections = client.db("petConnectDb").collection("adoptionRequest");
 
     //middle wares
@@ -81,7 +81,7 @@ async function run() {
 
 
     // users related api
-    app.get('/users', async (req, res) => {
+    app.get('/users',verifyToken, verifyAdmin, async (req, res) => {
       const result = await usersCollection.find().toArray()
       res.send(result)
     })
@@ -100,8 +100,6 @@ async function run() {
       }
       res.send({admin })
     })
-
-
     app.post('/users', async (req, res) => {
       const user = req.body;
       //  insert email if user doesn't exists:
@@ -128,7 +126,7 @@ async function run() {
 
 
     //pet related api
-    app.get('/pets', async (req, res) => {
+    app.get('/pets',  async (req, res) => {
       let query = {};
       
       if (req.query?.email) {
@@ -137,18 +135,18 @@ async function run() {
       const result = await petsCollection.find(query).toArray()
       res.send(result)
     })
-    app.post('/pets', async (req, res) => {
+    app.post('/pets',verifyToken, async (req, res) => {
       const petInfo = req.body;
       const result = await petsCollection.insertOne(petInfo)
       res.send(result)
     })
-    app.get('/pets/:id', async (req, res) => {
+    app.get('/pets/:id',  async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) }
       const result = await petsCollection.findOne(query)
       res.send(result)
     })
-    app.put('/pets/:id', async (req, res) => {
+    app.put('/pets/:id',verifyToken, async (req, res) => {
       const id = req.params.id;
       const updatedPets = req.body;
 
@@ -172,16 +170,17 @@ async function run() {
       const result = await petsCollection.updateOne(filter, updatedDoc, options)
       res.send(result)
     })
-    app.delete('/pets/:id',async(req,res)=>{
+    app.delete('/pets/:id', verifyToken, async(req,res)=>{
       const id = req.params.id;
       const query = {_id: new ObjectId(id)}
       const result = await petsCollection.deleteOne(query);
       res.send(result)
     })
 
-    app.patch('/pets/:id', async(req,res)=>{
+    app.patch('/pets/:id', verifyToken, async(req,res)=>{
       const item= req.body;
       console.log(item)
+    
       const id = req.params.id;
       const filter = {_id: new ObjectId (id)}
       const updatedDoc ={
@@ -210,26 +209,54 @@ async function run() {
 
 
     //donation Campaign related api
-    app.post('/donations', async (req, res) => {
+    app.post('/donationCampaigns',verifyToken, async (req, res) => {
       const petInfo = req.body;
-      const result = await donationsCollections.insertOne(petInfo)
+      const result = await donationCampaignsCollections.insertOne(petInfo)
       res.send(result)
     })
-    app.get('/donations', async (req, res) => {
+    app.get('/donationCampaigns', async (req, res) => {
       let query = {};
       console.log(req.query.email)
       if (req.query?.email) {
         query = { email: req.query.email }
       }
-      const result = await donationsCollections.find(query).toArray()
+      const result = await donationCampaignsCollections.find(query).toArray()
       res.send(result)
     })
-    app.get('/donations/:id', async (req, res) => {
+    app.get('/donationCampaigns/:id', async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) }
-      const result = await donationsCollections.findOne(query)
+      const result = await donationCampaignsCollections.findOne(query)
       res.send(result)
     })
+
+    app.put('/donationCampaigns/:id',verifyToken, async (req, res) => {
+      const id = req.params.id;
+      const updatedDonationCampaigns = req.body;
+      const filter = { _id: new ObjectId(id) }
+      const options = { upsert: true }
+      const updatedDoc = {
+        $set: {
+          petName: updatedDonationCampaigns.petName,
+          petImage: updatedDonationCampaigns.petImage, 
+          maxDonation: updatedDonationCampaigns.maxDonation,
+          lastDate: updatedDonationCampaigns.lastDate,
+          short_description: updatedDonationCampaigns.short_description,
+          long_description: updatedDonationCampaigns.long_description,
+          
+        }
+      }
+      const result = await donationCampaignsCollections.updateOne(filter, updatedDoc, options)
+      res.send(result)
+    })
+    app.delete('/donationCampaigns/:id',verifyToken, verifyAdmin,async(req,res)=>{
+      const id = req.params.id;
+      const query = {_id: new ObjectId(id)}
+      const result = await donationCampaignsCollections.deleteOne(query);
+      res.send(result)
+    })
+
+
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
