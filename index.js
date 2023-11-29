@@ -195,9 +195,14 @@ async function run() {
     })
 
     //adoption request related api
-    app.post('/adoptionRequest', async (req, res) => {
+    app.get('/adoptionRequest', async(req,res)=>{
+      const result = await adoptionRequestCollections.find().toArray()
+      res.send(result)
+    })
+    
+    app.post('/adoptionRequest', verifyToken, async (req, res) => {
       const adoptionInfo = req.body;
-      const query = {petId: adoptionInfo.petId}
+      const query = {petId: adoptionInfo.petId, email: adoptionInfo.email}
       console.log(query)
     existingRequest = await adoptionRequestCollections.findOne(query)
       if(existingRequest){
@@ -206,7 +211,21 @@ async function run() {
       const result = await adoptionRequestCollections.insertOne(adoptionInfo)
       res.send(result)
     })
-
+    app.patch('/adoptionRequest/:id', verifyToken, async(req,res)=>{
+      const requestInfo= req.body;
+      console.log(requestInfo)
+    
+      const id = req.params.id;
+      const filter = {_id: new ObjectId (id)}
+      const updatedDoc ={
+        $set:{
+          status: requestInfo.status
+        }
+      }
+      console.log(requestInfo)
+      const result = await adoptionRequestCollections.updateOne(filter, updatedDoc)
+      res.send(result)
+    })
 
     //donation Campaign related api
     app.post('/donationCampaigns',verifyToken, async (req, res) => {
@@ -249,7 +268,7 @@ async function run() {
       const result = await donationCampaignsCollections.updateOne(filter, updatedDoc, options)
       res.send(result)
     })
-    app.delete('/donationCampaigns/:id',verifyToken, verifyAdmin,async(req,res)=>{
+    app.delete('/donationCampaigns/:id',verifyToken, verifyAdmin, async(req,res)=>{
       const id = req.params.id;
       const query = {_id: new ObjectId(id)}
       const result = await donationCampaignsCollections.deleteOne(query);
