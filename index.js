@@ -4,11 +4,18 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken')
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config()
-
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
 const port = process.env.PORT || 5000;
 
 //middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: 'http://localhost:5173', // Allow only this origin
+    methods: ['GET', 'POST'], // Adjust methods based on your needs
+    credentials: true, // Enable if you need to include cookies or auth headers
+  })
+);
+
 app.use(express.json())
 
 //mongoDB
@@ -34,6 +41,7 @@ async function run() {
     const petsCollection = client.db("petConnectDb").collection("pets");
     const donationCampaignsCollections = client.db("petConnectDb").collection("donationCampaigns");
     const adoptionRequestCollections = client.db("petConnectDb").collection("adoptionRequest");
+    const paymentCollection = client.db("petConnectDb").collection("payment");
 
     //middle wares
     const verifyToken = (req, res, next) => {
@@ -276,13 +284,95 @@ async function run() {
     })
 
 
+    //payment related apis
+    app.post('/create-payment-intent', async(req,res)=>{
+      const {price } = req.body;
+      const amount = parseInt(price * 100);
+      // console.log(amount, 'amount inside the intent')
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: 'usd',
+        payment_method_types: ['card']
+      })
+      res.send({
+        clientSecret: paymentIntent.client_secret
+      })
+    })
+
+    // Payment related API
+app.post('/payments', verifyToken, async (req, res) => {
+  const paymentInfo = req.body;
+  
+  // Destructure data from the request body
+  const { email, price, transactionId, date, campaign } = paymentInfo;
+  
+  // Create the payment document to insert into the payments collection
+  const paymentDoc = {
+    email,
+    price,
+    transactionId,
+    date,
+    campaign, // This is the _id from the donationCampaigns collection
+  };
+
+  const session = client.startSession(); // Start a session for transaction
+  
+  try {
+    // Start transaction
+    session.startTransaction();
+
+    // Save payment to payments collection
+    const paymentResult = await paymentCollection.insertOne(paymentDoc, { session });
+
+    // Find the specific donation campaign by _id
+    const campaignQuery = { _id: new ObjectId(campaign) };
+    const donationCampaign = await donationCampaignsCollections.findOne(campaignQuery);
+
+    // Check if the campaign exists and if there's enough maxDonation to deduct
+    if (!donationCampaign) {
+      throw new Error('Donation campaign not found');
+    }
+
+    if (donationCampaign.maxDonation < price) {
+      throw new Error('Not enough remaining donation to process this payment');
+    }
+
+    // Reduce maxDonation by the price of the donation
+    const updatedMaxDonation = donationCampaign.maxDonation - price;
+
+    // Update the donationCampaign document
+    const updateCampaignResult = await donationCampaignsCollections.updateOne(
+      campaignQuery,
+      {
+        $set: {
+          maxDonation: updatedMaxDonation,
+        },
+      },
+      { session }
+    );
+
+    // Commit the transaction if everything is successful
+    await session.commitTransaction();
+
+    // Send success response
+    res.send({ success: true, message: 'Payment processed successfully', paymentResult });
+
+  } catch (error) {
+    // If there's an error, abort the transaction
+    await session.abortTransaction();
+    res.status(500).send({ success: false, message: error.message });
+  } finally {
+    // End the session
+    session.endSession();
+  }
+});
+
 
     // Send a ping to confirm a successful connection
     // await client.db("admin").command({ ping: 1 });
     // console.log("Pinged your deployment. You successfully connected to MongoDB!");
-  } finally {
-    // Ensures that the client will close when you finish/error
-    // await client.close();
+  } catch(err) {
+    console.log(err)
   }
 }
 run().catch(console.dir);
