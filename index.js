@@ -10,9 +10,9 @@ const port = process.env.PORT || 5000;
 //middleware
 app.use(
   cors({
-    origin: 'http://localhost:5173', // Allow only this origin
-    methods: ['GET', 'POST'], // Adjust methods based on your needs
-    credentials: true, // Enable if you need to include cookies or auth headers
+    origin: 'http://localhost:5173', 
+    methods: ['GET', 'POST', 'PATCH', 'PUT','DELETE'], 
+    credentials: true, 
   })
 );
 
@@ -22,7 +22,7 @@ app.use(express.json())
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.dezesb0.mongodb.net/?retryWrites=true&w=majority`;
 
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
+
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -33,8 +33,7 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    // Connect the client to the server	(optional starting in v4.7)
-    // await client.connect();
+  
 
     const petsCategoryCollection = client.db("petConnectDb").collection("petsCategory");
     const usersCollection = client.db("petConnectDb").collection("users");
@@ -270,19 +269,35 @@ async function run() {
           lastDate: updatedDonationCampaigns.lastDate,
           short_description: updatedDonationCampaigns.short_description,
           long_description: updatedDonationCampaigns.long_description,
+          status: updatedDonationCampaigns.status
           
         }
       }
       const result = await donationCampaignsCollections.updateOne(filter, updatedDoc, options)
       res.send(result)
     })
+    
     app.delete('/donationCampaigns/:id',verifyToken, verifyAdmin, async(req,res)=>{
       const id = req.params.id;
       const query = {_id: new ObjectId(id)}
       const result = await donationCampaignsCollections.deleteOne(query);
       res.send(result)
     })
-
+    app.patch('/donationCampaigns/:id', verifyToken, async(req,res)=>{
+      const requestInfo= req.body;
+      console.log(requestInfo)
+    
+      const id = req.params.id;
+      const filter = {_id: new ObjectId (id)}
+      const updatedDoc ={
+        $set:{
+          status: requestInfo.status
+        }
+      }
+      console.log(requestInfo)
+      const result = await donationCampaignsCollections.updateOne(filter, updatedDoc)
+      res.send(result)
+    })
 
     //payment related apis
     app.post('/create-payment-intent', async(req,res)=>{
@@ -302,20 +317,19 @@ async function run() {
     // Payment related API
 app.post('/payments', verifyToken, async (req, res) => {
   const paymentInfo = req.body;
-  
-  // Destructure data from the request body
+
   const { email, price, transactionId, date, campaign } = paymentInfo;
   
-  // Create the payment document to insert into the payments collection
+
   const paymentDoc = {
     email,
     price,
     transactionId,
     date,
-    campaign, // This is the _id from the donationCampaigns collection
+    campaign, 
   };
 
-  const session = client.startSession(); // Start a session for transaction
+  const session = client.startSession(); 
   
   try {
     // Start transaction
