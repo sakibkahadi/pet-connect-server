@@ -218,21 +218,40 @@ async function run() {
       const result = await adoptionRequestCollections.insertOne(adoptionInfo)
       res.send(result)
     })
-    app.patch('/adoptionRequest/:id', verifyToken, async(req,res)=>{
-      const requestInfo= req.body;
-      console.log(requestInfo)
-    
-      const id = req.params.id;
-      const filter = {_id: new ObjectId (id)}
-      const updatedDoc ={
-        $set:{
-          status: requestInfo.status
-        }
-      }
-      console.log(requestInfo)
-      const result = await adoptionRequestCollections.updateOne(filter, updatedDoc)
-      res.send(result)
-    })
+    app.patch('/adoptionRequest/:id', verifyToken, async (req, res) => {
+      const { status, petId } = req.body; 
+      const id = req.params.id; 
+ 
+      
+         
+          const filter = { _id: new ObjectId(id) };
+          const updatedDoc = {
+              $set: { status: status }
+          };
+          const updateResult = await adoptionRequestCollections.updateOne(filter, updatedDoc);
+         
+  
+       
+          const petFilter = { _id: new ObjectId(petId) };
+          const pet = await petsCollection.findOne(petFilter);
+         console.log(pet)
+  
+         
+          if (status === true) {
+              const petUpdateDoc = {
+                  $set: { adopted: true }
+              };
+              const petUpdateResult = await petsCollection.updateOne(petFilter, petUpdateDoc);
+              console.log(await petsCollection.findOne(petFilter))
+          }
+  
+          
+          res.send(updateResult);
+  
+   
+  });
+  
+  
 
     //donation Campaign related api
     app.post('/donationCampaigns',verifyToken, async (req, res) => {
