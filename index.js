@@ -242,7 +242,7 @@ async function run() {
     })
     app.get('/donationCampaigns', async (req, res) => {
       let query = {};
-      console.log(req.query.email)
+      
       if (req.query?.email) {
         query = { email: req.query.email }
       }
@@ -313,6 +313,50 @@ async function run() {
         clientSecret: paymentIntent.client_secret
       })
     })
+// user payment history
+
+
+app.get('/payments/:email', verifyToken, async (req, res) => {
+  const email = req.params.email;
+
+  
+  if (email !== req.decoded.email) {
+    return res.status(403).send({ message: 'forbidden access' });
+  }
+
+  try {
+    
+    const payments = await paymentCollection.find({ email }).toArray();
+
+ 
+    for (let payment of payments) {
+      if (payment.campaign) {
+        try {
+          
+          const campaignId = typeof payment.campaign === 'string' 
+            ? new ObjectId(payment.campaign) 
+            : payment.campaign;
+
+          
+          const campaign = await donationCampaignsCollections.findOne({ _id: campaignId });
+
+       
+          payment.campaignDetails = campaign;
+        } catch (idError) {
+          console.error(`Error converting campaign ID or fetching campaign data: ${idError}`);
+          payment.campaignDetails = null; // If there's an error, set to null
+        }
+      }
+    }
+
+   
+    res.send(payments);
+  } catch (error) {
+    console.error(`Error retrieving payment data: ${error}`);
+    res.status(500).send({ message: 'Error retrieving payment data', error });
+  }
+});
+
 
     // Payment related API
 app.post('/payments', verifyToken, async (req, res) => {
